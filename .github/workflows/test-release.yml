@@ -68,7 +68,7 @@ jobs:
           roster-id: b190321b8711e61029e4b805dabb3554
 
       - name: Cache uv Dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/uv
