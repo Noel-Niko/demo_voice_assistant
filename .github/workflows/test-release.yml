@@ -1,0 +1,150 @@
+name: demo_voice_assistant
+
+env:
+  namespace: digitalassistantdomain # Update to your team namespace here (MLOps Namespace)
+  vault-team-name: digitalassistantdomain # Update to your team name for vault / delivery platform (this can be different from namespace!)
+  HCP_VAULT_NAMESPACE: admin/b190321b8711e61029e4b805dabb3554
+  vault_url: ${{ vars.HCP_VAULT_PROD_URL }} # Hashicorp tokens for QA are in the HC prod env.
+  ROSTER_ID: b190321b8711e61029e4b805dabb3554
+  TEAM_NAME: digitalassistantdomain
+  PYTHON_VERSION: '3.11'
+
+permissions:
+  id-token: write
+  contents: read
+  actions: write
+
+on:
+  pull_request:
+    branches:
+      - test*
+  push:
+    branches:
+      - test*
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: wwg-internal/action-setup-python@v3
+        with:
+          vault-namespace: admin/b190321b8711e61029e4b805dabb3554
+          python-version: '3.x'
+      - name: Configure pypi
+        id: config-pypi
+        uses: wwg-internal/action-pypi-configure@v1
+        with:
+          roster-id: b190321b8711e61029e4b805dabb3554
+      - name: Install Ruff
+        run: pip install ruff
+      - name: Run Ruff Code Validation
+        run: ruff check . --verbose --show-files --extend-select TD
+      - name: Run Ruff Format Check
+        run: ruff format --check
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    # needs: lint
+    env:
+      DISABLE_AUTH: 'true'
+      ENVIRONMENT: 'test'
+      MCP_SECRET_KEY: 'test_secret_key_for_ci'
+      MCP_SECRET_ALGORITHM: 'HS256'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: wwg-internal/action-setup-python@v3
+        with:
+          vault-namespace: admin/b190321b8711e61029e4b805dabb3554
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Configure pypi
+        id: config-pypi
+        uses: wwg-internal/action-pypi-configure@v1
+        with:
+          roster-id: b190321b8711e61029e4b805dabb3554
+
+      - name: Cache uv Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install Dependencies
+        run: uv sync --dev
+
+      - name: Run Unit Tests
+        run: uv run pytest tests -v
+
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Free disk space
+        run: |
+          echo "::group::Disk space before cleanup"
+          df -h /
+          echo "::endgroup::"
+          
+          echo "::group::Removing pre-installed software"
+          # Directories to remove (largest first)
+          REMOVE_DIRS=(
+            /usr/local/lib/android    # ~10GB - Android SDK
+            /opt/ghc                  # ~5GB  - Haskell
+            /usr/share/dotnet         # ~1.5GB - .NET SDK
+            /opt/hostedtoolcache/CodeQL # ~1GB - CodeQL
+            /usr/share/swift          # ~1.5GB - Swift
+            /usr/local/share/boost    # ~500MB - Boost
+          )
+          
+          for dir in "${REMOVE_DIRS[@]}"; do
+            if [ -d "$dir" ]; then
+              echo "Removing $dir"
+              sudo rm -rf "$dir"
+            fi
+          done
+          echo "::endgroup::"
+          
+          echo "::group::Cleaning Docker"
+          docker system prune -af --volumes
+          echo "::endgroup::"
+          
+          echo "::group::Disk space after cleanup"
+          df -h /
+          echo "::endgroup::"
+
+      - name: Build and push image to ARTIFACTORY & ECR, use commit hash as tag
+        uses: ./.github/actions/build-and-push-image
+        with:
+          additional-tags: test
+          image-name: ${{ github.event.repository.name }}
+          scan-with-snyk: true
+          snyk-fail-on-issues: false
+          snyk-severity-threshold: "medium"
+          snyk-token-path: secret/data/snyk/github-actions
+          snyk-token-key: token
+          roster-id: ${{ env.ROSTER_ID }}
+          vault-url: ${{ vars.HCP_VAULT_PROD_URL }}
+
+
+      # Print image info for manual deployment
+      - name: Image Info for Manual Deployment
+        run: |
+          echo "=============================================="
+          echo "✅ Image built and pushed successfully!"
+          echo "=============================================="
+          echo ""
+          echo "Image Tag: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo ""
+          echo "=============================================="

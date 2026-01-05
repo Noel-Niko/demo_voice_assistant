@@ -1,0 +1,193 @@
+name: MCP Server Tests and Deployment
+
+on:
+  push:
+    branches: [main, qa]
+  pull_request:
+    branches: [main, qa]
+  workflow_dispatch:
+
+env:
+  ROSTER_ID: b190321b8711e61029e4b805dabb3554
+  TEAM_NAME: digitalassistantdomain
+  PYTHON_VERSION: '3.11'
+
+permissions:
+  id-token: write
+  contents: read
+  actions: write
+
+jobs:
+  # =============================================================================
+  # VALIDATION
+  # =============================================================================
+  lint:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: wwg-internal/action-setup-python@v3
+        with:
+          vault-namespace: admin/b190321b8711e61029e4b805dabb3554
+          python-version: '3.x'
+      - name: Configure pypi
+        id: config-pypi
+        uses: wwg-internal/action-pypi-configure@v1
+        with:
+          roster-id: b190321b8711e61029e4b805dabb3554
+      - name: Install Ruff
+        run: pip install ruff
+      - name: Run Ruff Code Validation
+        run: ruff check . --verbose --show-files --extend-select TD
+      - name: Run Ruff Format Check
+        run: ruff format --check
+      - name: Ruff Failure Guidance
+        if: failure()
+        run: |
+          echo ""
+          echo "❌ Ruff checks failed!"
+          echo ""
+          echo "🔧 Upgrade your local Ruff to match CI/CD version:"
+          echo "   pip install --upgrade ruff"
+          echo ""
+        continue-on-error: true
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    env:
+      DISABLE_AUTH: 'true'
+      ENVIRONMENT: 'test'
+      MCP_SECRET_KEY: 'test_secret_key_for_ci'
+      MCP_SECRET_ALGORITHM: 'HS256'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: wwg-internal/action-setup-python@v3
+        with:
+          vault-namespace: admin/b190321b8711e61029e4b805dabb3554
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Configure pypi
+        id: config-pypi
+        uses: wwg-internal/action-pypi-configure@v1
+        with:
+          roster-id: b190321b8711e61029e4b805dabb3554
+
+      - name: Cache uv Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Install Dependencies
+        run: uv sync --dev
+
+      - name: Prepare OldItems JSON
+        run: |
+          mkdir -p data
+          if [ ! -f data/old_items_sku_modelno.json ]; then
+            echo '{"skus": [], "model_nos": []}' > data/old_items_sku_modelno.json
+          fi
+
+      - name: Run Unit Tests
+        run: uv run pytest tests -v
+
+
+  # =============================================================================
+  # BUILD & PUSH IMAGE - Only on successful tests and push events
+  # =============================================================================
+  build:
+    name: Build and Push Container Image
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: github.event_name == 'push' && success()
+    outputs:
+      image-tag: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Free disk space to prevent "no space left on device" errors
+      - name: Free disk space
+        run: |
+          echo "::group::Disk space before cleanup"
+          df -h /
+          echo "::endgroup::"
+          
+          echo "::group::Removing pre-installed software"
+          REMOVE_DIRS=(
+            /usr/local/lib/android      # ~10GB - Android SDK
+            /opt/ghc                    # ~5GB  - Haskell
+            /usr/share/dotnet           # ~1.5GB - .NET SDK
+            /opt/hostedtoolcache/CodeQL # ~1GB - CodeQL
+            /usr/share/swift            # ~1.5GB - Swift
+            /usr/local/share/boost      # ~500MB - Boost
+          )
+          
+          for dir in "${REMOVE_DIRS[@]}"; do
+            if [ -d "$dir" ]; then
+              echo "Removing $dir"
+              sudo rm -rf "$dir"
+            fi
+          done
+          echo "::endgroup::"
+          
+          echo "::group::Cleaning Docker"
+          docker system prune -af --volumes
+          echo "::endgroup::"
+          
+          echo "::group::Disk space after cleanup"
+          df -h /
+          echo "::endgroup::"
+
+      - name: Build and Push Image
+        uses: ./.github/actions/build-and-push-image
+        with:
+          image-name: ${{ github.event.repository.name }}
+          scan-with-snyk: true
+          snyk-fail-on-issues: false
+          snyk-severity-threshold: "medium"
+          snyk-token-path: secret/data/snyk/github-actions
+          snyk-token-key: token
+          roster-id: ${{ env.ROSTER_ID }}
+          vault-url: ${{ vars.HCP_VAULT_PROD_URL }}
+
+
+#  deploy:
+#    name: Deploy to Test to Production Env
+#    runs-on: ubuntu-latest
+#    needs:
+#       - build-and-push-image
+#    environment:
+#      name: prod
+#    steps:
+#      - name: Deploy to Production
+#        uses: wwg-internal/aad-mlops-action-argo/update-image@v2
+#        with:
+#          team-name: ${{ env.TEAM_NAME }}
+#          variant: yq-patch
+#          patch-path: '.spec.values.deployment.image.tag'
+#          image-tag: ${{ needs.build-and-push-image.outputs.image-tag }}
+#          vault-namespace: admin/${{ env.ROSTER_ID }}
+#          environment: prod
+
+
+      # Print image info for manual deployment
+      - name: Image Info for Manual Deployment
+        run: |
+          echo "=============================================="
+          echo "✅ Image built and pushed successfully!"
+          echo "=============================================="
+          echo ""
+          echo "Image Tag: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo ""
+          echo "=============================================="

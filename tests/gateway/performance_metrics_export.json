@@ -1,0 +1,61 @@
+{
+  "report_generated": "2026-01-03T15:29:57.618860",
+  "performance_summary": {
+    "system_metrics": {
+      "uptime_seconds": 0.0,
+      "active_sessions": 0,
+      "completed_sessions": 0,
+      "last_updated": "2026-01-03T15:29:57.618835"
+    },
+    "transcription_metrics": {
+      "total_transcriptions": 0,
+      "final_transcriptions": 0,
+      "partial_transcriptions": 0,
+      "average_confidence": 0.0,
+      "total_words": 0,
+      "total_audio_duration": 0.0,
+      "average_word_time": 0.0
+    },
+    "processing_metrics": {
+      "total_processing_time": 0.0,
+      "audio_to_transcript_time": 0.0,
+      "transcript_to_llm_time": 0.0,
+      "llm_processing_time": 0.0,
+      "tool_execution_time": 0.0,
+      "response_generation_time": 0.0,
+      "session_count": 0,
+      "average_processing_time": 0.0
+    },
+    "session_summary": {
+      "total_sessions": 0,
+      "average_session_duration": 0.0,
+      "total_session_words": 0,
+      "average_session_confidence": 0.0
+    }
+  },
+  "detailed_metrics": {
+    "transcription_metrics": {
+      "total_transcriptions": 0,
+      "final_transcriptions": 0,
+      "partial_transcriptions": 0,
+      "average_confidence": 0.0,
+      "total_words": 0,
+      "total_audio_duration": 0.0,
+      "average_word_time": 0.0
+    },
+    "processing_metrics": {
+      "total_processing_time": 0.0,
+      "audio_to_transcript_time": 0.0,
+      "transcript_to_llm_time": 0.0,
+      "llm_processing_time": 0.0,
+      "tool_execution_time": 0.0,
+      "response_generation_time": 0.0,
+      "session_count": 0,
+      "average_processing_time": 0.0
+    },
+    "active_sessions": {},
+    "completed_sessions": [],
+    "system_start_time": "2026-01-03T15:29:57.618826",
+    "last_updated": "2026-01-03T15:29:57.618835"
+  }
+}

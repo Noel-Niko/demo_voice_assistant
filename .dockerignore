@@ -1,0 +1,25 @@
+# Reduce build context and image size
+.git
+.gitignore
+.idea
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.DS_Store
+
+# Local env and lock artifacts not needed in image context
+.env
+
+# Development and CI-only content
+tests/
+docs/
+helm/
+
+# Python caches
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/*.egg-info/
+**/*.dist-info/

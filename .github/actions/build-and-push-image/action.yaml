@@ -1,0 +1,86 @@
+name: build-and-push-image
+description: Build and push docker image to Artifactory using MLOps default settings
+inputs:
+  dockerfile-path:
+    description: Path to Dockerfile from workspace root
+    default: ./Dockerfile
+    required: false
+  docker-context-path:
+    description: Path to Docker build context
+    default: .
+    required: false
+  image-name:
+    description: Name of image (repository name by default)
+    default: ${{ github.event.repository.name }}
+    required: false
+  image-tag:
+    description: Tag of image (commit hash by default)
+    default: ${{ github.sha }}
+    required: false
+  scan-with-snyk:
+    description: Determines whether the action should run a Snyk scan
+    default: true
+    required: false
+  snyk-token-path:
+    description: Path to the teams snyk token in HCP Vault
+    default: secret/data/snyk/github-actions
+    required: false
+  snyk-token-key:
+    description: Key of the snyk token in HCP vault
+    default: token
+    required: false
+  snyk-fail-on-issues:
+    description: If scan fails, whether it should cause build to fail
+    default: true
+    required: false
+  snyk-monitor-on-build:
+    description: If after scan, whether snyk should take a snaphot using the Snyk CLI
+    default: true
+    required: false
+  snyk-severity-threshold:
+    description: Only reports vulnerabilities of provided level or higher (low/medium/high)
+    default: "medium"
+    required: false
+  roster-id:
+    description: team roster id
+    required: true
+  vault-url:
+    description: vault url
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Configure pypi
+      id: config-pypi
+      uses: wwg-internal/action-pypi-configure@v1
+      with:
+        roster-id: ${{ inputs.roster-id }}
+
+    - name: Get secrets from production vault.
+      uses: hashicorp/vault-action@v3
+      with:
+        method: jwt
+        url: ${{ inputs.vault-url }}
+        namespace: admin/${{ inputs.roster-id }}
+        role: ${{ github.event.repository.name }}
+        path: github
+        secrets: |
+          ${{ inputs.snyk-token-path }} ${{ inputs.snyk-token-key }} | SNYK_TOKEN ;
+
+    - name: Build and Push Docker image to Artifactory, tag with commit hash
+      uses: wwg-internal/action-build-docker@v2
+      with:
+        secret-files: |
+          pipconf=${{ env.PIP_CONFIG_FILE }}
+        docker-context-path: ${{ inputs.docker-context-path }}
+        dockerfile-path: ${{ inputs.dockerfile-path }}
+        image-name: ${{ inputs.image-name }}
+        image-tag: ${{ inputs.image-tag }}
+        scan-with-snyk: ${{ inputs.scan-with-snyk }}
+        snyk-fail-on-issues: ${{ inputs.snyk-fail-on-issues }}
+        snyk-monitor-on-build: ${{ inputs.snyk-monitor-on-build }}
+        snyk-token: ${{ env.SNYK_TOKEN }}
+        snyk-severity-threshold: ${{ inputs.snyk-severity-threshold }}
+        vault-namespace: admin/${{ inputs.roster-id }}
+        push-to-artifactory-only: 'true'

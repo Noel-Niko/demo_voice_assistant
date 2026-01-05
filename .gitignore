@@ -1,0 +1,79 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+tests/performance_metrics.json
+tests/performance_metrics_export.json
+
+# Type checking
+.mypy_cache/
+
+# Linting
+.ruff_cache/
+
+# UV specific
+.uv/
+.venv/
+__pypackages__/
+
+# Models (large files)
+models/*.pth
+models/*.bin
+models/*.safetensors
+
+# Data (large files)
+data/training_audio/*.wav
+data/synthetic_utterances/*.wav
+data/chat_sessions.db*
+
+# SQLite databases
+data/chat_sessions.db
+data/chat_sessions.db-shm
+data/chat_sessions.db-wal
+
+# Environment
+.env
+.env.local
+.env*
+!.env.example
+
+# Notebooks
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+gen-lang-client-0896931207-25ea0adb448d.json
