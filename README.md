@@ -9,14 +9,6 @@ https://github.com/user-attachments/assets/43088bbd-ae97-4ec1-a7ed-7ef9e4cbedba
 - Provides detailed step-by-step real-time latency metrics and a best practices guide for future projects.
 
   
-## Cluster Notice (vNext SNI Blocker)
-
-- This service cannot successfully run in the vNext Kubernetes cluster until a network policy fix is applied.
-- Root cause: SNI-based TLS inspection (likely Zscaler) resets connections when SNI=`speech.googleapis.com`.
-- Google Cloud APIs require SNI; the Python SDK always sets it; you cannot disable SNI.
-- Plan: Requesting to add an SSL inspection bypass/allowlist for `speech.googleapis.com` (and, if applicable, `oauth2.googleapis.com`) or route egress via a non-inspected path.
-- See Best Practices for verification steps: Best_Practices_Implemented.md#network-preconditions-vnext-sni-blocking--verification
-
 ## Table of Contents
 - [Documentation](#documentation)
 - [Cluster Notice (vNext SNI Blocker)](#cluster-notice-vnext-sni-blocker)
