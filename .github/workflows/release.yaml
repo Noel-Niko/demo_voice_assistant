@@ -25,7 +25,7 @@ jobs:
     name: Code Quality Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up Python
         uses: wwg-internal/action-setup-python@v3
         with:
@@ -63,7 +63,7 @@ jobs:
       MCP_SECRET_KEY: 'test_secret_key_for_ci'
       MCP_SECRET_ALGORITHM: 'HS256'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up Python
         uses: wwg-internal/action-setup-python@v3
         with:
@@ -113,7 +113,7 @@ jobs:
     outputs:
       image-tag: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Free disk space to prevent "no space left on device" errors
       - name: Free disk space
